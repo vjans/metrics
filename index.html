@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>status</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<style>
+  :root {
+    --bg: #0f1115; --card: #1a1d24; --ink: #e9eef5; --mute: #8590a3;
+    --good: #22c55e; --warn: #f59e0b; --bad: #ef4444; --info: #3b82f6;
+    --line: #2a2f3a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font: 14px/1.4 -apple-system, system-ui, Segoe UI, Roboto, sans-serif; min-height: 100vh; }
+  #lock { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+  #lock form { display: flex; gap: 8px; align-items: center; }
+  #lock input { background: var(--card); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); font: inherit; padding: 10px 14px; width: 260px; outline: none; }
+  #lock input:focus { border-color: var(--info); }
+  #lock button { background: var(--card); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); font: inherit; padding: 10px 16px; cursor: pointer; }
+  #lock button:hover { border-color: var(--info); }
+  #lock .err { color: var(--bad); font-size: 12px; margin-left: 8px; min-width: 100px; }
+
+  #dash { display: none; padding: 24px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
+  .sub { color: var(--mute); margin-bottom: 24px; font-size: 12px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 24px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .kpi .v { font-size: 28px; font-weight: 600; line-height: 1.1; }
+  .kpi .l { color: var(--mute); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .row2 { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 720px) { .row2 { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--mute); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+  .pill.good { background: rgba(34,197,94,0.15); color: var(--good); }
+  .pill.warn { background: rgba(245,158,11,0.15); color: var(--warn); }
+  .pill.bad { background: rgba(239,68,68,0.15); color: var(--bad); }
+  canvas { display: block; max-width: 100%; height: 280px !important; }
+  .reply { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .reply:last-child { border-bottom: none; }
+  .reply .meta { color: var(--mute); font-size: 11px; margin-bottom: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .reply .subj { font-weight: 600; margin-bottom: 6px; }
+  .reply .body { color: #cbd2dc; font-size: 13px; white-space: pre-wrap; max-height: 120px; overflow: hidden; position: relative; }
+  .reply .body.open { max-height: none; }
+  .reply .body::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, var(--card)); pointer-events: none; }
+  .reply .body.open::after { display: none; }
+  .reply .reasoning { color: var(--mute); font-size: 11px; font-style: italic; margin-top: 6px; }
+  .toggle { color: var(--info); cursor: pointer; font-size: 11px; margin-top: 4px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<div id="lock">
+  <form id="lock-form" autocomplete="off">
+    <input id="pw" type="password" autocomplete="off" autofocus>
+    <button type="submit">&rarr;</button>
+    <span class="err" id="err"></span>
+  </form>
+</div>
+
+<div id="dash">
+  <h1>pipeline metrics</h1>
+  <div class="sub">generated <span id="ts"></span></div>
+
+  <div class="grid">
+    <div class="kpi"><div class="l">contacts</div><div class="v" id="kpi-contacts"></div></div>
+    <div class="kpi"><div class="l">companies</div><div class="v" id="kpi-companies"></div></div>
+    <div class="kpi"><div class="l">mails sent (all-time)</div><div class="v" id="kpi-sent"></div></div>
+    <div class="kpi"><div class="l">queued for next send</div><div class="v" id="kpi-queued"></div></div>
+    <div class="kpi"><div class="l">replies received</div><div class="v" id="kpi-replies"></div></div>
+    <div class="kpi"><div class="l">suppression list</div><div class="v" id="kpi-supp"></div></div>
+    <div class="kpi"><div class="l">jobs unresearched</div><div class="v" id="kpi-unrese"></div></div>
+    <div class="kpi"><div class="l">jobs active</div><div class="v" id="kpi-jobs"></div></div>
+  </div>
+
+  <div class="row2">
+    <div class="card"><h2>last 14 days &mdash; sends, replies, bounces</h2><canvas id="chart-timeseries"></canvas></div>
+    <div class="card"><h2>last 14 days &mdash; new contacts researched</h2><canvas id="chart-contacts"></canvas></div>
+  </div>
+
+  <div class="row2">
+    <div class="card"><h2>NeverBounce mix (primary contacts)</h2><canvas id="chart-nb"></canvas></div>
+    <div class="card"><h2>reply triage breakdown</h2><canvas id="chart-replies"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2>bounce rate by NB classification (cumulative)</h2>
+    <table id="tbl-bounce">
+      <thead><tr><th>NB status of recipient</th><th class="n">sent</th><th class="n">bounced</th><th class="n">bounce rate</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>replies classified as "other" &mdash; interesting responses likely live here</h2>
+    <div id="other-list"></div>
+  </div>
+
+  <div class="card">
+    <h2>unclassified replies (not yet triaged)</h2>
+    <div id="unclassified-list"></div>
+  </div>
+</div>
+
+<script>
+const BLOB = {"salt": "sX+CbIQC2nULTfTbXazGWw==", "iv": "K3Ss4gwqwrLA4nn4", "ct": "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", "iter": 250000};
+
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const esc = s => (s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function decrypt(blob, password) {
+  const salt = b64(blob.salt), iv = b64(blob.iv), ct = b64(blob.ct);
+  const baseKey = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(password),
+    { name: 'PBKDF2' }, false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: blob.iter, hash: 'SHA-256' },
+    baseKey, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+document.getElementById('lock-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const pw = document.getElementById('pw').value;
+  const err = document.getElementById('err');
+  err.textContent = '…';
+  try {
+    const data = await decrypt(BLOB, pw);
+    document.getElementById('lock').style.display = 'none';
+    document.getElementById('dash').style.display = 'block';
+    render(data);
+  } catch (ex) {
+    err.textContent = 'nope';
+    document.getElementById('pw').select();
+  }
+});
+
+function render(DATA) {
+  document.getElementById('ts').textContent = new Date(DATA.generated_at_utc).toLocaleString();
+  const k = (id, v) => document.getElementById(id).textContent = (v ?? 0).toLocaleString();
+  k('kpi-contacts', DATA.contacts_total);
+  k('kpi-companies', DATA.companies_total);
+  k('kpi-sent', DATA.mails_sent_total);
+  k('kpi-queued', DATA.mails_queued);
+  k('kpi-replies', DATA.replies_total);
+  k('kpi-supp', DATA.suppressions_total);
+  k('kpi-unrese', DATA.jobs_unresearched);
+  k('kpi-jobs', DATA.jobs_active);
+
+  const COLORS = { good:'#22c55e', warn:'#f59e0b', bad:'#ef4444', info:'#3b82f6' };
+  const baseOpts = {
+    plugins: { legend: { labels: { color: '#e9eef5' } } },
+    scales: {
+      x: { ticks: { color: '#8590a3' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+      y: { ticks: { color: '#8590a3' }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+    }
+  };
+  const days = DATA.timeseries.map(t => t.day.slice(5));
+  new Chart(document.getElementById('chart-timeseries'), {
+    type: 'line',
+    data: { labels: days, datasets: [
+      { label: 'sent',    data: DATA.timeseries.map(t=>t.sent),    borderColor: COLORS.info, backgroundColor: 'transparent', tension: 0.2 },
+      { label: 'replies', data: DATA.timeseries.map(t=>t.replies), borderColor: COLORS.good, backgroundColor: 'transparent', tension: 0.2 },
+      { label: 'bounces', data: DATA.timeseries.map(t=>t.bounces), borderColor: COLORS.bad,  backgroundColor: 'transparent', tension: 0.2 }
+    ]}, options: baseOpts
+  });
+  new Chart(document.getElementById('chart-contacts'), {
+    type: 'bar',
+    data: { labels: days, datasets: [{
+      label: 'new contacts', data: DATA.timeseries.map(t=>t.new_contacts),
+      backgroundColor: COLORS.info
+    }] }, options: baseOpts
+  });
+
+  const pieOpts = { plugins: { legend: { labels: { color: '#e9eef5' }, position: 'right' } } };
+  const pal = ['#22c55e','#f59e0b','#ef4444','#3b82f6','#8590a3','#a855f7','#06b6d4','#84cc16'];
+  new Chart(document.getElementById('chart-nb'), {
+    type: 'doughnut',
+    data: { labels: DATA.nb_mix.map(x => x.s), datasets: [{ data: DATA.nb_mix.map(x => x.n), backgroundColor: pal }] },
+    options: pieOpts
+  });
+  new Chart(document.getElementById('chart-replies'), {
+    type: 'doughnut',
+    data: { labels: DATA.reply_mix.map(x => x.classification), datasets: [{ data: DATA.reply_mix.map(x => x.n), backgroundColor: pal }] },
+    options: pieOpts
+  });
+
+  const tbody = document.querySelector('#tbl-bounce tbody');
+  DATA.bounce_by_nb.forEach(r => {
+    const pct = r.sent ? (100*r.suppressed_bounce/r.sent).toFixed(1) : '0.0';
+    const cls = pct > 15 ? 'bad' : pct > 5 ? 'warn' : 'good';
+    tbody.insertAdjacentHTML('beforeend',
+      `<tr><td>${esc(r.nb)}</td><td class="n">${r.sent}</td><td class="n">${r.suppressed_bounce}</td>` +
+      `<td class="n"><span class="pill ${cls}">${pct}%</span></td></tr>`);
+  });
+
+  const renderReply = (r, withReasoning) => `
+    <div class="reply">
+      <div class="meta"><span>${esc(r.when_)}</span><span>${esc(r.sender)} &lt;${esc(r.from_email)}&gt;</span></div>
+      <div class="subj">${esc(r.subject) || '(no subject)'}</div>
+      <div class="body">${esc(r.body_excerpt) || '(empty)'}</div>
+      <span class="toggle" onclick="this.previousElementSibling.classList.toggle('open');this.textContent=this.previousElementSibling.classList.contains('open')?'collapse':'expand';">expand</span>
+      ${withReasoning && r.reasoning ? `<div class="reasoning">classifier: ${esc(r.reasoning)}</div>` : ''}
+    </div>`;
+  const other = document.getElementById('other-list');
+  other.innerHTML = DATA.other_replies.length
+    ? DATA.other_replies.map(r => renderReply(r, true)).join('')
+    : '<div style="color:var(--mute);font-size:13px">no "other"-classified replies yet</div>';
+  const uncl = document.getElementById('unclassified-list');
+  uncl.innerHTML = DATA.unclassified_replies.length
+    ? DATA.unclassified_replies.map(r => renderReply(r, false)).join('')
+    : '<div style="color:var(--mute);font-size:13px">none</div>';
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</body>
+</html>
